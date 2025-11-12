@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useDispatch } from "react-redux";
-import { selectUser } from '../features/usersSlice';
 import { useNavigate } from "react-router-dom";
 
+import { selectUser } from '../features/usersSlice';
+import { UserContext } from "../context/userSelectionContext";
+
 function User({ user }) {
+  const { setQuery } = useContext(UserContext)
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { displayName, email, photoURL } = user;
@@ -11,6 +14,7 @@ function User({ user }) {
   const HandleClick = (user) => {
     dispatch(selectUser(user));
     navigate("/chats");
+    setQuery("");
   }
 
   return (

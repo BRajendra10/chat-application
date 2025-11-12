@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import { useSelector } from "react-redux";
+
 import { LuSearch } from "react-icons/lu";
 import { GrFormClose } from "react-icons/gr";
+
 import User from './User';
+import { UserContext } from '../context/userSelectionContext.jsx';
+
 
 function Sidebar() {
-    const [query, setQuery] = useState("");
+    const { query, setQuery } = useContext(UserContext)
     const [result, setResult] = useState([]);
     const { users } = useSelector((state) => state.users);
     const { currentUser } = useSelector((state) => state.users);
@@ -15,6 +19,8 @@ function Sidebar() {
             if (query) {
                 const results = users.filter((user) => user.displayName.toLowerCase().includes(query.toLowerCase()));
                 setResult(results);
+            } else{
+                setResult([]);
             }
         }, 500);
 
@@ -40,7 +46,7 @@ function Sidebar() {
             </div>
 
             {/* Users list */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scroll">
+            <div className="flex-1 overflow-y-auto p-2 space-y-2">
                 {result.length > 0 ? result.map((el) => (
                     el.uid !== currentUser.uid && <User
                         key={el.uid}
@@ -50,6 +56,7 @@ function Sidebar() {
                     el.uid !== currentUser.uid && <User
                         key={el.uid}
                         user={el}
+                        queryState={{query, setQuery}}
                     />
                 ))}
             </div>
