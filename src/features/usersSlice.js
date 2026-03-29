@@ -1,16 +1,21 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { getDocs, setDoc, collection, doc } from "firebase/firestore";
+import { createSlice, createAsyncThunk, isPending, isRejected } from "@reduxjs/toolkit";
+import { getDocs, setDoc, collection, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 
-export const fetchUsers = createAsyncThunk("fetchusers", async () => {
-    const querySnapshot = await getDocs(collection(db, "users"));
-    const usersList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-    }));
-
-    return usersList;
-})
+export const fetchUsers = createAsyncThunk(
+    "users/fetchUsers",
+    async (_, { rejectWithValue }) => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "users"));
+            return querySnapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
 
 export const addUser = createAsyncThunk(
     "users/addUser",
@@ -22,7 +27,7 @@ export const addUser = createAsyncThunk(
                 email,
                 photoURL,
                 online: true,
-                createdAt: new Date()
+                createdAt: serverTimestamp()
             });
 
             // return the user object so Redux can update state immediately
@@ -37,7 +42,8 @@ const initialState = {
     users: [],
     currentUser: {},
     selectedUser: {},
-    status: "Pending...",
+
+    status: "pending",
     error: null
 }
 
@@ -55,30 +61,28 @@ const userSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchUsers.pending, (state) => {
-                state.status = "Pending...";
-            })
+            // fetching users
             .addCase(fetchUsers.fulfilled, (state, action) => {
-                state.status = "Sucess";
+                state.status = "success";
+                console.log("All users", action.payload);
                 state.users = action.payload;
             })
-            .addCase(fetchUsers.rejected, (state, action) => {
-                state.status = "failed";
-                state.error = action.payload;
-            });
 
-        builder
-            .addCase(addUser.pending, (state) => {
-                state.status = "Adding user...";
-            })
+            // adding user
             .addCase(addUser.fulfilled, (state, action) => {
-                state.status = "User added";
+                state.status = "success";
+                console.log("New user", action.payload);
                 state.users.push(action.payload);
             })
-            .addCase(addUser.rejected, (state, action) => {
+
+            // pending and rejected handling(removed boilerplate)
+            .addMatcher(isPending(fetchUsers, addUser), (state) => {
+                state.status = "pending";
+            })
+            .addMatcher(isRejected(fetchUsers, addUser), (state, action) => {
                 state.status = "failed";
                 state.error = action.payload;
-            });
+            })
     },
 })
 

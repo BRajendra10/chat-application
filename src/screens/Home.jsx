@@ -6,9 +6,9 @@ import { IoMdNotificationsOutline } from "react-icons/io";
 import { FiUsers } from "react-icons/fi";
 
 import Sidebar from "../components/Sidebar";
-import Chats from "../components/Chats";
+// import Chats from "../components/Chats";
 import Profile from "../components/Profile";
-import ChatContainer from "../components/ChatsContainer";
+import ChatsContainer from "../components/ChatsContainer";
 import GroupChatForm from "./GroupChatForm";
 
 function Home() {
@@ -61,7 +61,7 @@ function Home() {
                     <div className="flex-1 flex flex-col justify-center items-center border rounded-lg bg-zinc-100">
                         <span>Select chat to start chatting</span>
                     </div>
-                    : <ChatContainer currentUser={currentUser} selectedUser={selectedUser} />}
+                    : <ChatsContainer />}
             </div>
 
             <div className="flex md:hidden flex-1 gap-2 overflow-hidden">

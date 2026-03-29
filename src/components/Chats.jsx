@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import { createChat, deleteMessage, sendMessage, updateMessage } from "../features/chatsSlice";
+import { sendMessage, setMessages } from "../features/chatsSlice";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -11,67 +11,42 @@ import { MdDelete } from "react-icons/md";
 import { IoPaperPlane, IoArrowBackSharp } from "react-icons/io5";
 import Message from "./Message";
 
-function Chats({ currentUser, selectedUser, chatData }) {
+function Chats() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [msg, setMsg] = useState({});
+  const messages = useSelector((state) => state.chats.messages);
+  const currentUser = useSelector((state) => state.users.currentUser);
+  const selectedUser = useSelector((state) => state.users.selectedUser);
+  const chatData = useSelector((state) => state.chats.chat);
   const [text, setText] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [messages, setMessages] = useState([]);
 
   const handleClick = () => {
-    if (!text.trim()) return; // avoid sending empty messages
+    if (!text.trim()) return;
 
-    if (chatData) {
-      if (isUpdating) {
-        dispatch(updateMessage({ chatId: chatData.id, messageId: msg.id, newText: text }));
-        setIsUpdating(false);
-      } else {
-        dispatch(sendMessage({ chatId: chatData.id, senderId: currentUser.uid, message: text }));
-      }
-    } else {
-      dispatch(createChat({type: "direct",members: [currentUser.uid, selectedUser.uid]}))
-        .unwrap()
-        .then((newChat) => {
-          dispatch(sendMessage({ chatId: newChat.id, senderId: currentUser.uid, message: text}));
-        });
-    }
-
+    dispatch(sendMessage({ chatId: chatData.id, senderId: currentUser.uid, message: text }));
     setText("");
   };
 
-  const sortedMessages = useMemo(() => {
-    return [...(messages || [])].sort((a, b) => {
-      const aTime = a.createdAt?.toMillis?.() ?? new Date(a.createdAt).getTime();
-      const bTime = b.createdAt?.toMillis?.() ?? new Date(b.createdAt).getTime();
-      return aTime - bTime;
-    });
-  }, [messages]);
-
   useEffect(() => {
-    // Reset state when switching users/chats
-    setMessages(chatData?.messages || []);
-    setText("");
-    setIsUpdating(false);
-    setMsg({});
-
-    if (!chatData?.id) return; // no chat exists yet
+    if (!chatData?.id) return;
 
     const q = query(collection(db, "chats", chatData.id, "message"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
+      const messages = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setMessages(msgs);
+
+      dispatch(setMessages(messages));
     });
 
-    return () => unsubscribe(); // cleanup listener
-  }, [chatData]);
+    return () => unsubscribe();
+  }, [chatData?.id, dispatch]);
 
   return (
     <div className="flex-1 flex flex-col border rounded-lg bg-zinc-100">
+
       {/* Chat Header */}
       <div className="w-full h-[4.5rem] flex items-center gap-3 px-5 border rounded-t-lg border-gray-200 bg-white shadow-sm">
         <button className="block md:hidden text-xl" onClick={() => navigate("/")}>
@@ -94,25 +69,15 @@ function Chats({ currentUser, selectedUser, chatData }) {
 
       {/* Messages */}
       <div className="w-full flex-1 overflow-y-auto p-5 flex flex-col space-y-3 custom-scroll">
-        {sortedMessages.length === 0 ? (
+        {messages.length === 0 ? (
           <p className="text-gray-400 text-sm text-center">No messages yet…</p>
         ) : (
-          sortedMessages.map((msg) => (
+          messages.map((msg, index) => (
             <Message
-              key={msg.id}
+              key={index}
               msg={msg}
               currentUser={currentUser}
-              onEdit={(id, oldText) => {
-                const newText = prompt("Edit your message:", oldText);
-                if (newText && newText.trim()) {
-                  dispatch(updateMessage({ chatId: chatData.id, messageId: id, newText }));
-                }
-              }}
-              onDelete={(id) => {
-                if (window.confirm("Delete this message?")) {
-                  dispatch(deleteMessage({ chatId: chatData.id, messageId: id }));
-                }
-              }}
+              chatData={chatData}
             />
           ))
         )}
@@ -120,23 +85,30 @@ function Chats({ currentUser, selectedUser, chatData }) {
 
 
       {/* Input */}
-      <div className="sticky bottom-0 rounded-b-lg w-full bg-white px-5 py-4 flex items-center">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleClick();
+        }}
+        className="sticky bottom-0 rounded-b-lg w-full bg-white px-5 py-4 flex items-center"
+      >
         <input
           type="text"
           placeholder="Type a message..."
           className="flex-1 bg-gray-100 text-gray-800 px-4 py-2 rounded-lg outline-none placeholder-gray-400"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onFocus={() => window.scrollTo(0, document.body.scrollHeight)} // helps scroll into view on mobile
+          onFocus={() => window.scrollTo(0, document.body.scrollHeight)}
         />
         <button
           className="ml-3 bg-orange-500 hover:bg-orange-600 p-3 md:px-5 md:py-2 rounded-full text-sm text-white"
-          onClick={handleClick}
+          type="submit"
+        // onClick={handleClick}
         >
           <span className="hidden md:block">Send message</span>
           <IoPaperPlane className="block md:hidden text-lg" />
         </button>
-      </div>
+      </form>
 
     </div>
   );

@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, isPending, isRejected } from "@reduxjs/toolkit";
 import { addDoc, getDocs, deleteDoc, updateDoc, collection, query, where, serverTimestamp, doc } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -9,9 +9,11 @@ export const createChat = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      const chatKey = members.slice().sort().join("_");
       // 1️⃣ Create new chat doc
       const chatDoc = await addDoc(collection(db, "chats"), {
         type,
+        chatKey,
         members, // now array of user UIDs (including current user)
         groupName, // null if direct chat
         groupPhotoURL, // null if no group image
@@ -26,8 +28,9 @@ export const createChat = createAsyncThunk(
         groupName,
         groupPhotoURL,
         members,
-        createdAt: new Date().toISOString(), // fallback for UI
-        updatedAt: new Date().toISOString(),
+        chatKey,
+        createdAt: serverTimestamp(), // fallback for UI
+        updatedAt: serverTimestamp(),
         lastMessage: null,
         messages: [],
       };
@@ -37,40 +40,62 @@ export const createChat = createAsyncThunk(
   }
 );
 
+export const fetchSingleChat = createAsyncThunk(
+  "chats/fetchSingleChat",
+  async ({ currentUserUid, selectedUserUid }, { rejectWithValue }) => {
+    try {
+      const chatKey = [currentUserUid, selectedUserUid]
+        .sort()
+        .join("_");
 
-export const fetchUserChats = createAsyncThunk(
-  "chats/fetchUserChats",
-  async (currentUserUid) => {
-    // Step 1: get chats
-    const q = query(
-      collection(db, "chats"),
-      where("members", "array-contains", currentUserUid)
-    );
-    const snapshot = await getDocs(q);
+      const q = query(
+        collection(db, "chats"),
+        where("chatKey", "==", chatKey)
+      );
 
-    // Step 2: for each chat, also fetch messages
-    const chatsWithMessages = await Promise.all(
-      snapshot.docs.map(async (docSnap) => {
-        const chatData = {
+      const snapshot = await getDocs(q);
+
+      // ✅ If chat exists
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        return {
           id: docSnap.id,
-          ...docSnap.data()
+          ...docSnap.data(),
         };
+      }
 
-        // fetch messages subcollection
-        const messagesRef = collection(db, "chats", docSnap.id, "message");
-        const messageSnap = await getDocs(messagesRef);
-        const messages = messageSnap.docs.map((m) => ({
-          id: m.id,
-          ...m.data()
-        }));
-
-        return { ...chatData, messages };
-      })
-    );
-
-    return chatsWithMessages;
+      // ❗ If chat does NOT exist
+      return null;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
   }
 );
+
+// export const fetchMessages = createAsyncThunk(
+//   "chats/fetchMessages",
+//   async (chatId, { rejectWithValue }) => {
+//     try {
+//       const messagesRef = collection(db, "chats", chatId, "message");
+
+//       const q = query(
+//         messagesRef,
+//         orderBy("createdAt", "asc")
+//       );
+
+//       const snapshot = await getDocs(q);
+
+//       const messages = snapshot.docs.map((doc) => ({
+//         id: doc.id,
+//         ...doc.data(),
+//       }));
+
+//       return { chatId, messages };
+//     } catch (err) {
+//       return rejectWithValue(err.message);
+//     }
+//   }
+// );
 
 export const sendMessage = createAsyncThunk(
   "chats/sendMessage",
@@ -109,7 +134,7 @@ export const deleteMessage = createAsyncThunk(
 
       await deleteDoc(msgRef);
 
-      return { chatId, messageId };
+      return messageId;
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -124,10 +149,10 @@ export const updateMessage = createAsyncThunk(
 
       await updateDoc(msgRef, {
         message: newText,
-        editedAt: new Date()
+        editedAt: serverTimestamp()
       });
 
-      return { chatId, messageId, newText };
+      return true;
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -136,101 +161,76 @@ export const updateMessage = createAsyncThunk(
 
 const initialState = {
   chats: [],
-  status: "Pending...",
+  chat: {},
+  messages: [],
+  status: "pending",
   error: null
 }
 
 const chatsSlice = createSlice({
   name: "chats",
   initialState,
-  reducers: {},
+  reducers: {
+    setMessages: (state, action) => {
+      const sortedMessages = [...action.payload].sort((a, b) => {
+        const aTime = a.createdAt?.seconds || 0;
+        const bTime = b.createdAt?.seconds || 0;
+        return aTime - bTime;
+      });
+
+      state.messages = sortedMessages;
+    }
+  },
   extraReducers: (builder) => {
-    // fetch chats data
     builder
-      .addCase(fetchUserChats.pending, (state) => {
-        state.status = "Pending...";
-      })
-      .addCase(fetchUserChats.fulfilled, (state, action) => {
-        state.status = "Success";
-        state.chats = action.payload;
-      })
-      .addCase(fetchUserChats.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload;
+      // fetch user chats
+      .addCase(fetchSingleChat.fulfilled, (state, action) => {
+        state.status = "success";
+        state.chat = action.payload;
       })
 
-    // send message
-    builder
-      .addCase(sendMessage.pending, (state) => {
-        state.status = "Pending..."
-      })
+      // .addCase(fetchMessages.fulfilled, (state, action) => {
+      //   const { messages } = action.payload;
+      //   state.messages = messages
+      //   state.status = "success";
+      // })
+
+      // send message
       .addCase(sendMessage.fulfilled, (state, action) => {
-        const { chatId, message } = action.payload;
-        // Find the chat in state
-        const chatIndex = state.chats.findIndex((c) => c.id === chatId);
-        if (chatIndex !== -1) {
-          // Push message to messages array
-          state.chats[chatIndex].messages.push(message);
-          // Update lastMessage locally too
-          state.chats[chatIndex].lastMessage = {
-            text: message.text,
-            senderId: message.senderId,
-            createdAt: message.createdAt,
-          };
-        }
-      })
-      .addCase(sendMessage.rejected, (state, action) => {
-        state.error = action.payload;
+        const { message } = action.payload;
+        state.messages.push(message);
+        state.status = "success";
       })
 
-    // create new chat(start new chat)
-    builder
-      .addCase(createChat.pending, (state) => {
-        state.status = "Pending...";
-      })
+      // create new chat(start new chat)
       .addCase(createChat.fulfilled, (state, action) => {
-        state.status = "Success";
-        // Add the new chat to state
-        state.chats.push(action.payload);
+        state.status = "success";
+        state.chat = action.payload;
       })
-      .addCase(createChat.rejected, (state, action) => {
+
+      .addCase(updateMessage.fulfilled, (state) => {
+        state.state = "success"
+      })
+
+      .addCase(deleteMessage.fulfilled, (state, action) => {
+        const messageId = action.payload;
+        const messages = state.messages.filter((message) => message.id !== messageId);
+
+        state.messages = messages;
+        state.status = "success";
+
+      })
+
+      // pending and rejected handling(removed boilerplate)
+      .addMatcher(isPending(fetchSingleChat, sendMessage, createChat, updateMessage, deleteMessage), (state) => {
+        state.status = "pending";
+      })
+      .addMatcher(isRejected(fetchSingleChat, sendMessage, createChat, updateMessage, deleteMessage), (state, action) => {
         state.status = "failed";
         state.error = action.payload;
-      });
-
-    builder
-      // ✅ Update message
-      .addCase(updateMessage.fulfilled, (state, action) => {
-        const { chatId, messageId, newText } = action.payload;
-        const chatIndex = state.chats.findIndex((c) => c.id === chatId);
-        if (chatIndex !== -1) {
-          const msgIndex = state.chats[chatIndex].messages.findIndex(
-            (m) => m.id === messageId
-          );
-          if (msgIndex !== -1) {
-            state.chats[chatIndex].messages[msgIndex].message = newText;
-            state.chats[chatIndex].messages[msgIndex].editedAt = new Date();
-          }
-        }
       })
-      .addCase(updateMessage.rejected, (state, action) => {
-        state.error = action.payload;
-      })
-
-    builder
-      .addCase(deleteMessage.fulfilled, (state, action) => {
-        const { chatId, messageId } = action.payload;
-        const chatIndex = state.chats.findIndex((c) => c.id === chatId);
-        if (chatIndex !== -1) {
-          state.chats[chatIndex].messages = state.chats[chatIndex].messages.filter(
-            (m) => m.id !== messageId
-          );
-        }
-      })
-      .addCase(deleteMessage.rejected, (state, action) => {
-        state.error = action.payload;
-      });
   }
 })
 
 export default chatsSlice.reducer;
+export const { setMessages } = chatsSlice.actions;

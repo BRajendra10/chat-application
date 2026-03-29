@@ -1,31 +1,34 @@
-import React, { useMemo } from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 
 import Chats from "./Chats";
+import { createChat, fetchSingleChat, setMessages } from "../features/chatsSlice";
 
-export default function ChatContainer({ currentUser, selectedUser }) {
-  const { chats } = useSelector((state) => state.chats);
+export default function ChatContainer() {
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.users.currentUser);
+  const selectedUser = useSelector((state) => state.users.selectedUser);
+  const chat = useSelector((state) => state.chats.chat)
 
-  // ✅ Find the chat between these two users (if it exists)
-  const chatData = useMemo(() => {
-    // First look for private chat
-    const privateChat = chats.find(
-      (chat) =>
-        chat.members.includes(currentUser.uid) &&
-        chat.members.includes(selectedUser.uid) &&
-        chat.type === "direct"
-    );
+  useEffect(() => {
+    ; (async () => {
+      dispatch(setMessages([]))
+      let chat = await dispatch(
+        fetchSingleChat({
+          currentUserUid: currentUser.uid,
+          selectedUserUid: selectedUser.uid,
+        })
+      ).unwrap();
 
-    // If not found, look for group chat by groupName
-    const groupChat = chats.find(
-      (chat) => chat.groupName?.includes(selectedUser.displayName) && chat.type === "group"
-    );
+      if (!chat) {
+        chat = await dispatch(createChat({ type: "direct", members: [currentUser.uid, selectedUser.uid] })).unwarp();
+      }
 
-    return privateChat || groupChat || null; // always return chat object or null
-  }, [chats, currentUser.uid, selectedUser.uid, selectedUser.displayName]);
+    })()
+  }, [dispatch, currentUser, selectedUser])
 
   // ✅ Decide what to render:
-  if (!selectedUser?.uid) {
+  if (!selectedUser?.uid || !chat) {
     return (
       <div className="flex-1 flex flex-col justify-center items-center border rounded-lg bg-zinc-100">
         <span>Select chat to start chatting</span>
@@ -34,10 +37,6 @@ export default function ChatContainer({ currentUser, selectedUser }) {
   }
 
   return (
-    <Chats
-      currentUser={currentUser}
-      selectedUser={selectedUser}
-      chatData={chatData} // ✅ Pass chat object only if it exists
-    />
+    <Chats />
   );
 }

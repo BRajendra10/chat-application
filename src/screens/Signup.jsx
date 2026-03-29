@@ -35,20 +35,16 @@ function Signup() {
                     values.password
                 );
 
-                const randomNum = Math.floor(Math.random() * 99) + 1;
-                const randomAvatar = `https://randomuser.me/api/portraits/${values.avatarGender}/${randomNum}.jpg`;
-
                 await updateProfile(userCredential.user, {
                     displayName: values.username,
-                    photoURL: randomAvatar
+                    photoURL: "../../public/user.avif"
                 });
 
-                // ✅ Dispatch Redux thunk instead of calling setDoc here
                 dispatch(addUser({
                     uid: userCredential.user.uid,
                     displayName: values.username,
                     email: values.email,
-                    photoURL: randomAvatar
+                    photoURL: "../../public/user.avif"
                 }));
 
                 navigate("/");
@@ -63,84 +59,86 @@ function Signup() {
     const { errors, values, touched, handleChange, handleBlur } = formik;
 
     return (
-        <div className="w-[23rem] md:w-[30rem] h-fit flex flex-col items-center bg-white shadow-xl rounded-xl p-5">
-            <h1 className="text-2xl font-semibold mb-5">Signup</h1>
+        <div className="w-full h-screen flex justify-center items-center">
+            <div className="w-[23rem] md:w-[30rem] h-fit flex flex-col items-center bg-white shadow-xl rounded-xl p-5">
+                <h1 className="text-2xl font-semibold mb-5">Signup</h1>
 
-            <form className="w-full h-fit flex flex-col" onSubmit={formik.handleSubmit}>
-                <label className="text-base my-2">Username</label>
-                <input
-                    className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
-                    type="text"
-                    name="username"
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    value={values.username}
-                />
-                {touched.username && errors.username && (
-                    <p className="text-red-500 text-sm">{errors.username}</p>
-                )}
+                <form className="w-full h-fit flex flex-col" onSubmit={formik.handleSubmit}>
+                    <label className="text-base my-2">Username</label>
+                    <input
+                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
+                        type="text"
+                        name="username"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        value={values.username}
+                    />
+                    {touched.username && errors.username && (
+                        <p className="text-red-500 text-sm">{errors.username}</p>
+                    )}
 
-                <label className="text-base my-2">Email</label>
-                <input
-                    className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
-                    type="email"
-                    name="email"
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    value={values.email}
-                />
-                {touched.email && errors.email && (
-                    <p className="text-red-500 text-sm">{errors.email}</p>
-                )}
+                    <label className="text-base my-2">Email</label>
+                    <input
+                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
+                        type="email"
+                        name="email"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        value={values.email}
+                    />
+                    {touched.email && errors.email && (
+                        <p className="text-red-500 text-sm">{errors.email}</p>
+                    )}
 
-                <label className="text-base my-2">Password</label>
-                <input
-                    className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
-                    type="password"
-                    name="password"
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    value={values.password}
-                />
-                {touched.password && errors.password && (
-                    <p className="text-red-500 text-sm">{errors.password}</p>
-                )}
+                    <label className="text-base my-2">Password</label>
+                    <input
+                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
+                        type="password"
+                        name="password"
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        value={values.password}
+                    />
+                    {touched.password && errors.password && (
+                        <p className="text-red-500 text-sm">{errors.password}</p>
+                    )}
 
-                <label className="text-base my-2">Select Avatar Gender</label>
-                <div className="flex gap-4 mb-5">
-                    {["men", "women"].map((gender) => (
-                        <label key={gender} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="radio"
-                                name="avatarGender"
-                                value={gender}
-                                onChange={handleChange}
-                                onBlur={handleBlur}
-                                checked={values.avatarGender === gender}
-                                className="cursor-pointer"
-                            />
-                            <span className="capitalize">{gender}</span>
-                        </label>
-                    ))}
-                </div>
-                {touched.avatarGender && errors.avatarGender && (
-                    <p className="text-red-500 text-sm">{errors.avatarGender}</p>
-                )}
+                    <label className="text-base my-2">Select Avatar Gender</label>
+                    <div className="flex gap-4 mb-5">
+                        {["men", "women"].map((gender) => (
+                            <label key={gender} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="avatarGender"
+                                    value={gender}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    checked={values.avatarGender === gender}
+                                    className="cursor-pointer"
+                                />
+                                <span className="capitalize">{gender}</span>
+                            </label>
+                        ))}
+                    </div>
+                    {touched.avatarGender && errors.avatarGender && (
+                        <p className="text-red-500 text-sm">{errors.avatarGender}</p>
+                    )}
 
-                <button
-                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-lg p-3 mt-5"
-                    type="submit"
-                >
-                    Sign up
-                </button>
+                    <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-lg p-3 mt-5"
+                        type="submit"
+                    >
+                        Sign up
+                    </button>
 
-                <NavLink
-                    className="text-center text-blue-500 mt-5 underline"
-                    to={"/login"}
-                >
-                    Already have an account? Login
-                </NavLink>
-            </form>
+                    <NavLink
+                        className="text-center text-blue-500 mt-5 underline"
+                        to={"/login"}
+                    >
+                        Already have an account? Login
+                    </NavLink>
+                </form>
+            </div>
         </div>
     );
 }

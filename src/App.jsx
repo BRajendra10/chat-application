@@ -1,24 +1,25 @@
 import React, { useEffect } from 'react'
 import { useSelector, useDispatch } from "react-redux";
+import { Routes, Route, Navigate } from 'react-router-dom';
 
-import { fetchUsers } from './features/usersSlice';
-import { fetchUserChats } from './features/chatsSlice';
+import Signin from './screens/Signin.jsx';
+import Signup from './screens/Signup.jsx';
+import Home from './screens/Home';
+import Sidebar from './components/Sidebar';
+// import ChatsContainer from './components/ChatsContainer';
+
 import { setCurrentUser } from './features/usersSlice';
 
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 
-import Navigation from "./routes/Navigation";
 import './App.css'
+import Chats from './components/Chats.jsx';
 
 function App() {
   const dispatch = useDispatch();
-  const { currentUser } = useSelector((state) => state.users);
-  
-  useEffect(() => {
-    dispatch(fetchUsers());
-    dispatch(fetchUserChats(currentUser?.uid));
-  }, [dispatch, currentUser]);
+  const currentUser = useSelector((state) => state.users.currentUser);
+  const selectedUser = useSelector((state) => state.users.selectedUser);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -28,9 +29,17 @@ function App() {
   }, [dispatch, currentUser]);
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <Navigation />
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} >
+        <Route index element={<Sidebar />} />
+        <Route path="/chats" element={!selectedUser.uid ?
+          (<Navigate to="/" replace />)
+          : (<Chats />)} />
+      </Route>
+      <Route path="/login" element={<Signin />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="*" element={<>Page not found</>} />
+    </Routes>
   );
 }
 
