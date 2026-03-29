@@ -160,7 +160,6 @@ export const updateMessage = createAsyncThunk(
 );
 
 const initialState = {
-  chats: [],
   chat: {},
   messages: [],
   status: "pending",
@@ -196,9 +195,7 @@ const chatsSlice = createSlice({
       // })
 
       // send message
-      .addCase(sendMessage.fulfilled, (state, action) => {
-        const { message } = action.payload;
-        state.messages.push(message);
+      .addCase(sendMessage.fulfilled, (state) => {
         state.status = "success";
       })
 

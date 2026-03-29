@@ -64,14 +64,12 @@ const userSlice = createSlice({
             // fetching users
             .addCase(fetchUsers.fulfilled, (state, action) => {
                 state.status = "success";
-                console.log("All users", action.payload);
                 state.users = action.payload;
             })
 
             // adding user
             .addCase(addUser.fulfilled, (state, action) => {
                 state.status = "success";
-                console.log("New user", action.payload);
                 state.users.push(action.payload);
             })
 

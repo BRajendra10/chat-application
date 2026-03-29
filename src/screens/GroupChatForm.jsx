@@ -4,7 +4,6 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { createChat } from "../features/chatsSlice";
 import { addUser } from "../features/usersSlice";
-// import { addChatAsUser } from "../features/usersSlice";
 
 function GroupChatForm({ click }) {
   const dispatch = useDispatch();
