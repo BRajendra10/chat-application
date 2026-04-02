@@ -3,17 +3,19 @@ import { useFormik } from "formik";
 import { object, string } from "yup";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
+import { FcGoogle } from "react-icons/fc";
 
 import { addUser } from "../features/usersSlice";
 
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 import { auth } from "../firebase";
+
+const googleProvider = new GoogleAuthProvider();
 
 const schema = object({
     username: string().required("Username is required"),
     email: string().required("Email is required").email("Invalid email"),
     password: string().required("Password is required").min(8, "At least 8 characters"),
-    avatarGender: string().required("Please select your avatar gender"),
 });
 
 function Signup() {
@@ -24,7 +26,6 @@ function Signup() {
             username: "",
             email: "",
             password: "",
-            avatarGender: "", // men or women
         },
         validationSchema: schema,
         onSubmit: async (values) => {
@@ -56,87 +57,118 @@ function Signup() {
         },
     });
 
+    const handleSignup = async () => {
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+
+            const user = result.user;
+
+            // Dispatch to Redux
+            dispatch(addUser({
+                uid: user.uid,
+                displayName: user.displayName,
+                email: user.email,
+                photoURL: user.photoURL
+            }));
+
+            // Navigate to home
+            navigate("/");
+
+        } catch (error) {
+            console.error("❌ Google Signup Error:", error.message);
+        }
+    };
+
     const { errors, values, touched, handleChange, handleBlur } = formik;
 
     return (
-        <div className="w-full h-screen flex justify-center items-center">
-            <div className="w-[23rem] md:w-[30rem] h-fit flex flex-col items-center bg-white shadow-xl rounded-xl p-5">
-                <h1 className="text-2xl font-semibold mb-5">Signup</h1>
+        <div className="w-full h-screen flex justify-center items-center bg-stone-100">
+            <div className="w-[24rem] md:w-[32rem] bg-white rounded-2xl shadow-2xl p-8">
 
-                <form className="w-full h-fit flex flex-col" onSubmit={formik.handleSubmit}>
-                    <label className="text-base my-2">Username</label>
+                <h1 className="text-3xl font-semibold text-center mb-2">
+                    Create Account
+                </h1>
+                <p className="text-center text-gray-500 mb-6">
+                    Join and start your journey
+                </p>
+
+                {/* Google Button */}
+                <button
+                    onClick={handleSignup}
+                    className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-3 hover:bg-gray-50 transition"
+                >
+                    <FcGoogle size="30" />
+                    <span className="font-medium">Continue with Google</span>
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                    <div className="flex-1 h-px bg-gray-300"></div>
+                    <span className="px-3 text-gray-400 text-sm">OR</span>
+                    <div className="flex-1 h-px bg-gray-300"></div>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={formik.handleSubmit} className="flex flex-col">
+
+                    {/* Username */}
+                    <label className="text-sm mb-1">Username</label>
                     <input
-                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
                         type="text"
                         name="username"
+                        value={values.username}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        value={values.username}
+                        className="bg-gray-100 focus:bg-white border border-transparent focus:border-black outline-none rounded-lg px-3 py-3 mb-2 transition"
                     />
                     {touched.username && errors.username && (
-                        <p className="text-red-500 text-sm">{errors.username}</p>
+                        <p className="text-red-500 text-xs mb-2">{errors.username}</p>
                     )}
 
-                    <label className="text-base my-2">Email</label>
+                    {/* Email */}
+                    <label className="text-sm mb-1">Email</label>
                     <input
-                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
                         type="email"
                         name="email"
+                        value={values.email}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        value={values.email}
+                        className="bg-gray-100 focus:bg-white border border-transparent focus:border-black outline-none rounded-lg px-3 py-3 mb-2 transition"
                     />
                     {touched.email && errors.email && (
-                        <p className="text-red-500 text-sm">{errors.email}</p>
+                        <p className="text-red-500 text-xs mb-2">{errors.email}</p>
                     )}
 
-                    <label className="text-base my-2">Password</label>
+                    {/* Password */}
+                    <label className="text-sm mb-1">Password</label>
                     <input
-                        className="bg-zinc-100 outline-zinc-900 rounded-sm px-2 py-3 mb-1"
                         type="password"
                         name="password"
+                        value={values.password}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        value={values.password}
+                        className="bg-gray-100 focus:bg-white border border-transparent focus:border-black outline-none rounded-lg px-3 py-3 mb-2 transition"
                     />
                     {touched.password && errors.password && (
-                        <p className="text-red-500 text-sm">{errors.password}</p>
+                        <p className="text-red-500 text-xs mb-2">{errors.password}</p>
                     )}
 
-                    <label className="text-base my-2">Select Avatar Gender</label>
-                    <div className="flex gap-4 mb-5">
-                        {["men", "women"].map((gender) => (
-                            <label key={gender} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="avatarGender"
-                                    value={gender}
-                                    onChange={handleChange}
-                                    onBlur={handleBlur}
-                                    checked={values.avatarGender === gender}
-                                    className="cursor-pointer"
-                                />
-                                <span className="capitalize">{gender}</span>
-                            </label>
-                        ))}
-                    </div>
-                    {touched.avatarGender && errors.avatarGender && (
-                        <p className="text-red-500 text-sm">{errors.avatarGender}</p>
-                    )}
-
+                    {/* Submit Button */}
                     <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-lg p-3 mt-5"
                         type="submit"
+                        className="bg-black text-white rounded-lg py-3 mt-4 hover:opacity-90 transition"
                     >
-                        Sign up
+                        Sign Up
                     </button>
 
-                    <NavLink
-                        className="text-center text-blue-500 mt-5 underline"
-                        to={"/login"}
-                    >
-                        Already have an account? Login
-                    </NavLink>
+                    {/* Link */}
+                    <p className="text-center text-sm mt-5">
+                        Already have an account?{" "}
+                        <NavLink className="text-black font-medium underline" to="/login">
+                            Sign in
+                        </NavLink>
+                    </p>
+
                 </form>
             </div>
         </div>
